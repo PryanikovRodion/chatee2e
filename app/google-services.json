@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "659216817298",
+    "project_id": "chatee2e",
+    "storage_bucket": "chatee2e.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:659216817298:android:6781f6b03ebf7a5ade5a4b",
+        "android_client_info": {
+          "package_name": "com.example.chatee2e"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA5K1xl_9xIrpj9xarkkOmVfjVeuLm4V_U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
