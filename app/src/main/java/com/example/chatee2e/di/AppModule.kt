@@ -25,8 +25,6 @@ import javax.inject.Singleton
 @InstallIn(SingletonComponent::class)
 object AppModule {
 
-
-
     @Provides
     @Singleton
     fun provideFirebaseAuth(): FirebaseAuth {
@@ -38,8 +36,6 @@ object AppModule {
     fun provideFirebaseFirestore(): FirebaseFirestore {
         return FirebaseFirestore.getInstance()
     }
-
-
 
     @Provides
     @Singleton
@@ -58,8 +54,6 @@ object AppModule {
     fun provideCryptoManager(): CryptoManager {
         return CryptoManagerImpl()
     }
-
-
 
     @Provides
     @Singleton
@@ -108,8 +102,6 @@ object AppModule {
             .fallbackToDestructiveMigration()
             .build()
     }
-
-
 
     @Provides
     @Singleton
