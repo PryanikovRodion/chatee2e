@@ -5,6 +5,7 @@ import java.util.Date
 data class Chat(
     val id: String?,
     val name: String,
+    val ownerId: String?,
     val isGroup: Boolean,
     val participants: List<User>,
     val lastMessageText: String? = null,

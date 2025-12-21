@@ -1,8 +1,9 @@
 package com.example.chatee2e.di
 
-import android.app.Application
 import android.content.Context
 import android.content.SharedPreferences
+import android.util.Log
+import androidx.room.Room
 import com.example.chatee2e.data.crypto.CryptoManager
 import com.example.chatee2e.data.crypto.CryptoManagerImpl
 import com.example.chatee2e.data.local.AppDatabase
@@ -14,11 +15,9 @@ import com.google.firebase.firestore.FirebaseFirestore
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import net.zetetic.database.sqlcipher.SupportOpenHelperFactory
-import java.io.File
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import javax.inject.Singleton
 
 @Module
@@ -27,77 +26,33 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideFirebaseAuth(): FirebaseAuth {
-        return FirebaseAuth.getInstance()
+    fun provideFirebaseAuth(): FirebaseAuth = FirebaseAuth.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideFirebaseFirestore(): FirebaseFirestore = FirebaseFirestore.getInstance()
+
+    @Provides
+    @Singleton
+    fun provideSharedPreferences(@ApplicationContext context: Context): SharedPreferences {
+        return context.getSharedPreferences("chatee2e_prefs", Context.MODE_PRIVATE)
     }
 
     @Provides
     @Singleton
-    fun provideFirebaseFirestore(): FirebaseFirestore {
-        return FirebaseFirestore.getInstance()
-    }
-
-    @Provides
-    @Singleton
-    fun provideSharedPreferences(app: Application): SharedPreferences {
-        return app.getSharedPreferences("chatee2e_prefs", Context.MODE_PRIVATE)
-    }
-
-    @Provides
-    @Singleton
-    fun provideSessionManager(prefs: SharedPreferences): SessionManager {
-        return SessionManager(prefs)
-    }
-
-    @Provides
-    @Singleton
-    fun provideCryptoManager(): CryptoManager {
-        return CryptoManagerImpl()
-    }
+    fun provideCryptoManager(): CryptoManager = CryptoManagerImpl()
 
     @Provides
     @Singleton
     fun provideDatabase(
-        app: Application,
-        cryptoManager: CryptoManager
+        @ApplicationContext context: Context,
+        sessionManager: SessionManager
     ): AppDatabase {
-        val dbFile = app.getDatabasePath("chatee2e.db")
-        val keyFile = File(app.filesDir, "db_key.dat")
-
-        val passphrase: ByteArray
-
-        if (!keyFile.exists()) {
-
-            val (rawPass, cryptoResult) = cryptoManager.generateAndEncryptDatabasePassphrase()
-            passphrase = rawPass
-
-            FileOutputStream(keyFile).use { fos ->
-                fos.write(cryptoResult.iv.size)
-                fos.write(cryptoResult.iv)
-                fos.write(cryptoResult.encryptedData)
-            }
-        } else {
-
-            FileInputStream(keyFile).use { fis ->
-                val ivSize = fis.read()
-                val iv = ByteArray(ivSize)
-                fis.read(iv)
-
-                val encryptedData = fis.readBytes()
-
-
-                passphrase = cryptoManager.decryptDatabasePassphrase(encryptedData, iv)
-            }
-        }
-
+        System.loadLibrary("sqlcipher")
+        val passphrase = sessionManager.databasePassphrase ?: ByteArray(32)
 
         val factory = SupportOpenHelperFactory(passphrase)
-
-        return androidx.room.Room.databaseBuilder(
-            app,
-            AppDatabase::class.java,
-            "chatee2e.db"
-        )
+        return Room.databaseBuilder(context, AppDatabase::class.java, "chatee2e.db")
             .openHelperFactory(factory)
             .fallbackToDestructiveMigration()
             .build()
@@ -105,13 +60,9 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideChatDao(db: AppDatabase): ChatDao {
-        return db.chatDao
-    }
+    fun provideChatDao(db: AppDatabase): ChatDao = db.chatDao
 
     @Provides
     @Singleton
-    fun provideMessageDao(db: AppDatabase): MessageDao {
-        return db.messageDao
-    }
+    fun provideMessageDao(db: AppDatabase): MessageDao = db.messageDao
 }

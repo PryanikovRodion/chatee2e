@@ -34,8 +34,8 @@ import javax.inject.Singleton
 @Singleton
 class MessageRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
-    private val messageDao: MessageDao,
-    private val chatDao: ChatDao,
+    private val messageDao: dagger.Lazy<MessageDao>,
+    private val chatDao: dagger.Lazy<ChatDao>,
     private val cryptoManager: CryptoManager,
     private val sessionManager: SessionManager
 ) : MessageRepository {
@@ -69,7 +69,7 @@ class MessageRepositoryImpl @Inject constructor(
                     }
                 }
 
-            val dbFlow = messageDao.getMessagesForChat(chatId).map { entities ->
+            val dbFlow = messageDao.get().getMessagesForChat(chatId).map { entities ->
                 entities.map { it.toDomain() }
             }
 
@@ -88,7 +88,7 @@ class MessageRepositoryImpl @Inject constructor(
     ) {
         val messagesToInsert = mutableListOf<com.example.chatee2e.data.local.entity.MessageEntity>()
 
-        val chatEntity = chatDao.getChatById(chatId)
+        val chatEntity = chatDao.get().getChatById(chatId)
         val participantsType = object : TypeToken<List<User>>() {}.type
         val participants: List<User> = if (chatEntity != null) {
             gson.fromJson(chatEntity.participantsInfo, participantsType)
@@ -100,7 +100,7 @@ class MessageRepositoryImpl @Inject constructor(
             try {
                 val dto = doc.toObject(MessageDto::class.java) ?: continue
 
-                if (messageDao.getMessageById(doc.id) != null) continue
+                if (messageDao.get().getMessageById(doc.id) != null) continue
 
                 val myEncryptedAesKeyStr = dto.encryptedKeys[myId]
                 if (myEncryptedAesKeyStr == null) {
@@ -128,11 +128,11 @@ class MessageRepositoryImpl @Inject constructor(
         }
 
         if (messagesToInsert.isNotEmpty()) {
-            messageDao.insertMessages(messagesToInsert)
+            messageDao.get().insertMessages(messagesToInsert)
 
             val lastMsg = messagesToInsert.maxByOrNull { it.timestamp }
             if (lastMsg != null) {
-                chatDao.updateLastMessage(chatId, lastMsg.text, lastMsg.timestamp)
+                chatDao.get().updateLastMessage(chatId, lastMsg.text, lastMsg.timestamp)
             }
         }
     }
@@ -140,47 +140,40 @@ class MessageRepositoryImpl @Inject constructor(
     override suspend fun sendMessage(chatId: String, text: String): Resource<Unit> {
         return try {
             val myId = sessionManager.getUserId() ?: return Resource.Error("Not logged in")
-            val chatEntity = chatDao.getChatById(chatId)
-                ?: return Resource.Error("Chat not found locally")
-            val type = object : TypeToken<List<User>>() {}.type
-            val participants: List<User> = gson.fromJson(chatEntity.participantsInfo, type)
-            if (participants.isEmpty()) return Resource.Error("No participants found")
+
+            val chatDoc = firestore.collection("chats").document(chatId).get().await()
+            val participantIds = chatDoc.get("participantIds") as? List<String> ?: return Resource.Error("No participants")
+
             val aesKey = cryptoManager.generateRandomAesKey()
             val encryptedKeysMap = mutableMapOf<String, String>()
-            for (user in participants) {
+
+            for (userId in participantIds) {
                 try {
-                    var publicKeyBase64 = sessionManager.getPublicKey(user.id)
+                    var publicKeyBase64 = sessionManager.getPublicKey(userId)
                     if (publicKeyBase64 == null) {
-                        val userDoc = firestore.collection("users").document(user.id).get().await()
-                        publicKeyBase64 = userDoc.toObject(UserDto::class.java)?.publicKey
+                        val userDoc = firestore.collection("users").document(userId).get().await()
+                        publicKeyBase64 = userDoc.getString("publicKey")
                         if (publicKeyBase64 != null) {
-                            sessionManager.savePublicKey(user.id, publicKeyBase64)
-                        } else {
-                            Log.e("MessageRepo", "Public key for user ${user.id} not found on server")
-                            continue
-                        }
+                            sessionManager.savePublicKey(userId, publicKeyBase64)
+                        } else continue
                     }
                     val publicKey = cryptoManager.getPublicKeyFromBase64(publicKeyBase64)
                     val encryptedAesBytes = cryptoManager.encryptAesKeyWithRsa(aesKey, publicKey)
-                    encryptedKeysMap[user.id] = Base64.encodeToString(encryptedAesBytes, Base64.NO_WRAP)
+                    encryptedKeysMap[userId] = Base64.encodeToString(encryptedAesBytes, Base64.NO_WRAP)
                 } catch (e: Exception) {
-                    Log.e("MessageRepo", "Failed to encrypt key for user ${user.id}", e)
+                    Log.e("MessageRepo", "Failed to encrypt for $userId", e)
                 }
             }
 
             val cryptoResult = cryptoManager.encryptMsg(text, aesKey)
-            val encryptedContentStr = Base64.encodeToString(cryptoResult.encryptedData, Base64.NO_WRAP)
-            val ivStr = Base64.encodeToString(cryptoResult.iv, Base64.NO_WRAP)
-
             val messageDto = MessageDto(
                 chatId = chatId,
                 senderId = myId,
                 timestamp = null,
-                encryptedContent = encryptedContentStr,
-                iv = ivStr,
+                encryptedContent = Base64.encodeToString(cryptoResult.encryptedData, Base64.NO_WRAP),
+                iv = Base64.encodeToString(cryptoResult.iv, Base64.NO_WRAP),
                 encryptedKeys = encryptedKeysMap
             )
-
 
             firestore.collection("chats").document(chatId)
                 .collection("messages")
@@ -189,14 +182,13 @@ class MessageRepositoryImpl @Inject constructor(
 
             Resource.Success(Unit)
         } catch (e: Exception) {
-            e.printStackTrace()
-            Resource.Error(e.localizedMessage ?: "Failed to send message")
+            Resource.Error(e.localizedMessage ?: "Failed to send")
         }
     }
 
     override suspend fun clearHistory(chatId: String): Resource<Unit> {
         return try {
-            messageDao.deleteMessagesByChatId(chatId)
+            messageDao.get().deleteMessagesByChatId(chatId)
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error("Failed to clear history")

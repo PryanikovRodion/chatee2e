@@ -5,6 +5,7 @@ import com.example.chatee2e.domain.model.User
 import kotlinx.coroutines.flow.Flow
 
 interface UserRepository {
+    suspend fun getAllUsers(): Resource<List<User>> // Добавь это
     suspend fun blockUser(userId: String): Resource<Unit>
     suspend fun unblockUser(userId: String): Resource<Unit>
     fun getBlockedUsers(): Flow<List<User>>

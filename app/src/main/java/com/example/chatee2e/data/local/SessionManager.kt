@@ -14,8 +14,15 @@ class SessionManager @Inject constructor(
         private const val KEY_USER_ID = "current_user_id"
     }
 
+    @Volatile
+    var databasePassphrase: ByteArray? = null
+        private set
+
     private val publicKeyCache = mutableMapOf<String, String>()
 
+    fun setDatabaseKey(key: ByteArray) {
+        databasePassphrase = key
+    }
 
     fun saveUserId(id: String) {
         prefs.edit {
@@ -41,6 +48,8 @@ class SessionManager @Inject constructor(
 
     fun clearSession() {
         publicKeyCache.clear()
+        databasePassphrase?.fill(0)
+        databasePassphrase = null
         prefs.edit {
             remove(KEY_USER_ID)
         }

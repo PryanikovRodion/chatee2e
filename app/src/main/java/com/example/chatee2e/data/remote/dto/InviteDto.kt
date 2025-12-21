@@ -4,8 +4,9 @@ import com.google.firebase.firestore.ServerTimestamp
 import java.util.Date
 
 data class InviteDto(
-    val chatId: String = "",
-    val senderId: String = "",
+    val chatId: String,
+    val senderId: String,
+    val receiverId: String,
     @ServerTimestamp
-    val timestamp: Date? = null,
+    val timestamp: Date? = null
 )

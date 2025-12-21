@@ -140,4 +140,20 @@ class CryptoManagerImpl @Inject constructor() : CryptoManager {
         cipher.init(Cipher.DECRYPT_MODE, masterKey, spec)
         return cipher.doFinal(encryptedData)
     }
+
+    override fun deleteKeys() {
+        try {
+            val keyStore = KeyStore.getInstance("AndroidKeyStore").apply {
+                load(null)
+            }
+            if (keyStore.containsAlias(ALIAS_IDENTITY)) {
+                keyStore.deleteEntry(ALIAS_IDENTITY)
+            }
+            if (keyStore.containsAlias(ALIAS_MASTER)) {
+                keyStore.deleteEntry(ALIAS_MASTER)
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
 }

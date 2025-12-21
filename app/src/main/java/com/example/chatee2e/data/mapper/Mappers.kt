@@ -21,6 +21,7 @@ fun UserDto.toDomain(id: String): User {
 fun ChatDto.toEntity(id: String, participantsJson: String): ChatEntity {
     return ChatEntity(
         id = id,
+        ownerId = ownerId,
         name = this.name,
         isGroup = this.isGroup,
         participantsInfo = participantsJson,
@@ -32,6 +33,7 @@ fun ChatDto.toEntity(id: String, participantsJson: String): ChatEntity {
 fun ChatEntity.toDomain(participants: List<User>): Chat {
     return Chat(
         id = this.id,
+        ownerId = ownerId,
         name = this.name,
         isGroup = this.isGroup,
         participants = participants,

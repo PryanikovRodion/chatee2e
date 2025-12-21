@@ -15,4 +15,5 @@ interface CryptoManager {
     fun createMasterKey()
     fun generateAndEncryptDatabasePassphrase(): Pair<ByteArray, CryptoResult>
     fun decryptDatabasePassphrase(encryptedData: ByteArray, iv: ByteArray): ByteArray
+    fun deleteKeys()
 }

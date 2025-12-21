@@ -85,4 +85,17 @@ class UserRepositoryImpl @Inject constructor(
             }
         awaitClose { listener.remove() }
     }
+    override suspend fun getAllUsers(): Resource<List<User>> {
+        val myId = sessionManager.getUserId() ?: return Resource.Error("User not authorized")
+        return try {
+            val snapshot = firestore.collection("users").get().await()
+            val users = snapshot.documents.mapNotNull { doc ->
+                val dto = doc.toObject(UserDto::class.java)
+                dto?.toDomain(doc.id)
+            }.filter { it.id != myId }
+            Resource.Success(users)
+        } catch (e: Exception) {
+            Resource.Error(e.localizedMessage ?: "Could not fetch users")
+        }
+    }
 }
