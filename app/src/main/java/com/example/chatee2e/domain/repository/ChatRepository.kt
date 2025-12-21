@@ -12,4 +12,6 @@ interface ChatRepository {
     suspend fun createDirectChat(targetUser: User): Resource<String>
     suspend fun addMembers(chatId: String, newMembers: List<User>): Resource<Unit>
     suspend fun leaveChat(chatId: String): Resource<Unit>
+
+    suspend fun curentId(): String
 }

@@ -2,7 +2,6 @@ package com.example.chatee2e.di
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import androidx.room.Room
 import com.example.chatee2e.data.crypto.CryptoManager
 import com.example.chatee2e.data.crypto.CryptoManagerImpl
@@ -49,20 +48,20 @@ object AppModule {
         sessionManager: SessionManager
     ): AppDatabase {
         System.loadLibrary("sqlcipher")
-        val passphrase = sessionManager.databasePassphrase ?: ByteArray(32)
+
+        val passphrase = sessionManager.databasePassphrase
+            ?: throw IllegalStateException("Database passphrase must be initialized before Room")
 
         val factory = SupportOpenHelperFactory(passphrase)
-        return Room.databaseBuilder(context, AppDatabase::class.java, "chatee2e.db")
+        return Room.databaseBuilder(context, AppDatabase::class.java, "chatee2e_db")
             .openHelperFactory(factory)
             .fallbackToDestructiveMigration()
             .build()
     }
 
     @Provides
-    @Singleton
-    fun provideChatDao(db: AppDatabase): ChatDao = db.chatDao
+    fun provideChatDao(db: dagger.Lazy<AppDatabase>): ChatDao = db.get().chatDao
 
     @Provides
-    @Singleton
-    fun provideMessageDao(db: AppDatabase): MessageDao = db.messageDao
+    fun provideMessageDao(db: dagger.Lazy<AppDatabase>): MessageDao = db.get().messageDao
 }

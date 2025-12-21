@@ -2,7 +2,6 @@ package com.example.chatee2e.data.crypto
 
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import android.security.keystore.UserNotAuthenticatedException
 import android.util.Base64
 import java.nio.charset.StandardCharsets
 import java.security.KeyFactory
@@ -52,10 +51,8 @@ class CryptoManagerImpl @Inject constructor() : CryptoManager {
 
     override fun getMyPublicKeyBase64(): String {
         ensureKeyPairExists()
-
         val entry = keyStore.getEntry(ALIAS_IDENTITY, null) as? KeyStore.PrivateKeyEntry
-            ?: throw IllegalStateException("Keystore keys not found even after generation")
-
+            ?: throw IllegalStateException("Keystore keys not found")
         return Base64.encodeToString(entry.certificate.publicKey.encoded, Base64.NO_WRAP)
     }
 
@@ -89,17 +86,14 @@ class CryptoManagerImpl @Inject constructor() : CryptoManager {
     override fun encryptMsg(text: String, aesKey: SecretKey): CryptoResult {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, aesKey)
-        val iv = cipher.iv
-        val encryptedBytes = cipher.doFinal(text.toByteArray(StandardCharsets.UTF_8))
-        return CryptoResult(encryptedBytes, iv)
+        return CryptoResult(cipher.doFinal(text.toByteArray(StandardCharsets.UTF_8)), cipher.iv)
     }
 
     override fun decryptMsg(encryptedData: ByteArray, iv: ByteArray, aesKey: SecretKey): String {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         val spec = GCMParameterSpec(128, iv)
         cipher.init(Cipher.DECRYPT_MODE, aesKey, spec)
-        val decodedBytes = cipher.doFinal(encryptedData)
-        return String(decodedBytes, StandardCharsets.UTF_8)
+        return String(cipher.doFinal(encryptedData), StandardCharsets.UTF_8)
     }
 
     override fun createMasterKey() {
@@ -129,10 +123,9 @@ class CryptoManagerImpl @Inject constructor() : CryptoManager {
         val masterKey = keyStore.getKey(ALIAS_MASTER, null) as SecretKey
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
         cipher.init(Cipher.ENCRYPT_MODE, masterKey)
-        val encryptedBytes = cipher.doFinal(rawPassphrase)
-        val iv = cipher.iv
-        return Pair(rawPassphrase, CryptoResult(encryptedBytes, iv))
+        return Pair(rawPassphrase, CryptoResult(cipher.doFinal(rawPassphrase), cipher.iv))
     }
+
     override fun decryptDatabasePassphrase(encryptedData: ByteArray, iv: ByteArray): ByteArray {
         val masterKey = keyStore.getKey(ALIAS_MASTER, null) as SecretKey
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -143,9 +136,6 @@ class CryptoManagerImpl @Inject constructor() : CryptoManager {
 
     override fun deleteKeys() {
         try {
-            val keyStore = KeyStore.getInstance("AndroidKeyStore").apply {
-                load(null)
-            }
             if (keyStore.containsAlias(ALIAS_IDENTITY)) {
                 keyStore.deleteEntry(ALIAS_IDENTITY)
             }

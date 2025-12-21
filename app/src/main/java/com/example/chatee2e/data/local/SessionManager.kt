@@ -1,5 +1,6 @@
 package com.example.chatee2e.data.local
 
+import android.content.Context
 import android.content.SharedPreferences
 import androidx.core.content.edit
 import javax.inject.Inject
@@ -46,12 +47,19 @@ class SessionManager @Inject constructor(
         publicKeyCache.putAll(keys)
     }
 
-    fun clearSession() {
+    fun clearSession(context: Context) {
         publicKeyCache.clear()
         databasePassphrase?.fill(0)
         databasePassphrase = null
+
         prefs.edit {
-            remove(KEY_USER_ID)
+            clear()
+            commit()
         }
+
+        val dbName = "chatee2e_db"
+        context.deleteDatabase(dbName)
+        context.deleteDatabase("$dbName-shm")
+        context.deleteDatabase("$dbName-wal")
     }
 }

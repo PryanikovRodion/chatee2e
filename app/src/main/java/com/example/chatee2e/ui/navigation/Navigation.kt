@@ -38,20 +38,21 @@ fun Navigation(startDestination: String) {
                 onNavigateToSearch = {
                     navController.navigate(Screen.Search.route)
                 },
-                // НОВОЕ: Переход к созданию группы
                 onNavigateToCreateGroup = {
                     navController.navigate(Screen.CreateGroup.route)
+                },
+                onLogout = {
+                    navController.navigate(Screen.Auth.route) {
+                        popUpTo(0) { inclusive = true }
+                    }
                 }
             )
         }
 
-        // НОВОЕ: Регистрация экрана создания группы
         composable(route = Screen.CreateGroup.route) {
             CreateGroupScreen(
                 onNavigateBack = { navController.popBackStack() },
-                onSuccess = {
-                    navController.popBackStack() // Возврат в список чатов после создания
-                }
+                onSuccess = { navController.popBackStack() }
             )
         }
 
@@ -73,8 +74,13 @@ fun Navigation(startDestination: String) {
                 navArgument("chatName") { type = NavType.StringType }
             )
         ) { backStackEntry ->
+            val chatId = backStackEntry.arguments?.getString("chatId") ?: ""
             val chatName = backStackEntry.arguments?.getString("chatName") ?: "Chat"
-            MessageScreen(chatName = chatName)
+            MessageScreen(
+                chatId = chatId,
+                chatName = chatName,
+                onNavigateBack = { navController.popBackStack() }
+            )
         }
     }
 }

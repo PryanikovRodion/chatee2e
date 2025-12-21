@@ -31,7 +31,9 @@ import javax.inject.Singleton
 class ChatRepositoryImpl @Inject constructor(
     private val firestore: FirebaseFirestore,
     private val chatDao: dagger.Lazy<ChatDao>,
-    private val sessionManager: SessionManager
+    private val sessionManager: SessionManager,
+    private val cryptoManager: com.example.chatee2e.data.crypto.CryptoManager,
+    private val prefs: android.content.SharedPreferences
 ) : ChatRepository {
 
     private val gson = Gson()
@@ -40,8 +42,44 @@ class ChatRepositoryImpl @Inject constructor(
     private val repoScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     override suspend fun connect() {
+        if (sessionManager.databasePassphrase == null) {
+            setupDatabaseKey()
+        }
+
         val myUserId = sessionManager.getUserId() ?: return
 
+        setupListeners(myUserId)
+    }
+
+    private fun setupDatabaseKey() {
+        try {
+            val encryptedPassphraseBase64 = prefs.getString("encrypted_db_pass", null)
+            val ivBase64 = prefs.getString("db_pass_iv", null)
+
+            if (encryptedPassphraseBase64 != null && ivBase64 != null) {
+                val encryptedData = android.util.Base64.decode(encryptedPassphraseBase64, android.util.Base64.NO_WRAP)
+                val iv = android.util.Base64.decode(ivBase64, android.util.Base64.NO_WRAP)
+
+                val decryptedKey = cryptoManager.decryptDatabasePassphrase(encryptedData, iv)
+                sessionManager.setDatabaseKey(decryptedKey)
+            } else {
+                val (rawKey, result) = cryptoManager.generateAndEncryptDatabasePassphrase()
+
+                prefs.edit().apply {
+                    putString("encrypted_db_pass", android.util.Base64.encodeToString(result.encryptedData, android.util.Base64.NO_WRAP))
+                    putString("db_pass_iv", android.util.Base64.encodeToString(result.iv, android.util.Base64.NO_WRAP))
+                    commit()
+                }
+
+                sessionManager.setDatabaseKey(rawKey)
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("ChatRepo", "Critical error during DB key setup", e)
+            throw IllegalStateException("Could not initialize database key")
+        }
+    }
+
+    private fun setupListeners(myUserId: String) {
         invitesListener?.remove()
         invitesListener = firestore.collection("users")
             .document(myUserId)
@@ -199,5 +237,9 @@ class ChatRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Resource.Error(e.localizedMessage ?: "Failed")
         }
+    }
+
+    override suspend fun curentId(): String {
+        return sessionManager.getUserId()?:""
     }
 }

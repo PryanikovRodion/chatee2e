@@ -1,6 +1,6 @@
 package com.example.chatee2e.data.repository
 
-import android.util.Log
+import android.content.Context
 import com.example.chatee2e.common.Resource
 import com.example.chatee2e.data.crypto.CryptoManager
 import com.example.chatee2e.data.local.SessionManager
@@ -10,15 +10,17 @@ import com.example.chatee2e.data.mapper.toDomain
 import com.example.chatee2e.data.remote.dto.UserDto
 import com.example.chatee2e.domain.model.User
 import com.example.chatee2e.domain.repository.AuthRepository
+import com.google.firebase.auth.EmailAuthProvider
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
-import com.google.firebase.firestore.SetOptions
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlin.system.exitProcess
 
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
@@ -27,7 +29,8 @@ class AuthRepositoryImpl @Inject constructor(
     private val cryptoManager: CryptoManager,
     private val sessionManager: SessionManager,
     private val chatDao: dagger.Lazy<ChatDao>,
-    private val messageDao: dagger.Lazy<MessageDao>
+    private val messageDao: dagger.Lazy<MessageDao>,
+    @ApplicationContext private val context: Context
 ) : AuthRepository {
 
     override val currentUser: Flow<User?> = callbackFlow {
@@ -56,15 +59,9 @@ class AuthRepositoryImpl @Inject constructor(
         return try {
             auth.createUserWithEmailAndPassword(email, password).await()
             sendVerificationEmail()
-
             val uid = auth.currentUser?.uid ?: return Resource.Error("User ID not found")
-            val userDto = UserDto(
-                username = username,
-                email = email,
-                publicKey = ""
-            )
+            val userDto = UserDto(username = username, email = email, publicKey = "")
             firestore.collection("users").document(uid).set(userDto).await()
-
             Resource.Success(Unit)
         } catch (e: Exception) {
             Resource.Error(e.localizedMessage ?: "Registration failed")
@@ -75,19 +72,13 @@ class AuthRepositoryImpl @Inject constructor(
         return try {
             val result = auth.signInWithEmailAndPassword(email, password).await()
             val user = result.user ?: return Resource.Error("User not found")
-
             if (!user.isEmailVerified) {
                 return Resource.Error("Please verify your email first")
             }
-
             val uid = user.uid
             cryptoManager.ensureKeyPairExists()
             val myPublicKey = cryptoManager.getMyPublicKeyBase64()
-
-            firestore.collection("users").document(uid)
-                .update("publicKey", myPublicKey)
-                .await()
-
+            firestore.collection("users").document(uid).update("publicKey", myPublicKey).await()
             sessionManager.saveUserId(uid)
             Resource.Success(true)
         } catch (e: Exception) {
@@ -97,27 +88,40 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun signOut() {
         auth.signOut()
-        sessionManager.clearSession()
+        sessionManager.clearSession(context)
+        exitProcess(0)
     }
 
-    override suspend fun deleteAccount(): Resource<Unit> {
+    override suspend fun deleteAccount(password: String): Resource<Unit> {
         return try {
             val user = auth.currentUser ?: return Resource.Error("Not logged in")
+            val email = user.email ?: return Resource.Error("Email not found")
             val uid = user.uid
+
+            val credential = EmailAuthProvider.getCredential(email, password)
+            user.reauthenticate(credential).await()
 
             firestore.collection("users").document(uid).delete().await()
 
-            messageDao.get().clearAllMessages()
-            chatDao.get().clearAllChats()
+            val chatsSnapshot = firestore.collection("chats")
+                .whereArrayContains("participants", uid)
+                .get()
+                .await()
 
-            cryptoManager.deleteKeys()
+            for (chatDoc in chatsSnapshot.documents) {
+                chatDoc.reference.delete().await()
+            }
 
             user.delete().await()
-            sessionManager.clearSession()
 
-            Resource.Success(Unit)
+            cryptoManager.deleteKeys()
+            sessionManager.clearSession(context)
+
+            exitProcess(0)
+
+            //Resource.Success(Unit)
         } catch (e: Exception) {
-            Resource.Error(e.localizedMessage ?: "Failed to delete account")
+            Resource.Error(e.localizedMessage ?: "Authentication failed. Check your password.")
         }
     }
 
@@ -146,11 +150,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun searchUserByEmail(email: String): Resource<User?> {
         return try {
-            val snapshot = firestore.collection("users")
-                .whereEqualTo("email", email)
-                .limit(1)
-                .get()
-                .await()
+            val snapshot = firestore.collection("users").whereEqualTo("email", email).limit(1).get().await()
             if (snapshot.isEmpty) {
                 Resource.Success(null)
             } else {

@@ -13,6 +13,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -111,6 +112,11 @@ fun MessageBubble(message: Message) {
         Column(
             horizontalAlignment = if (message.isMine) Alignment.End else Alignment.Start
         ) {
+            Text(
+                text = message.timestamp?.toString()!!,
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.padding(start = 4.dp, bottom = 2.dp)
+            )
             if (!message.isMine) {
                 Text(
                     text = message.senderName ?: "Unknown",

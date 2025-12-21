@@ -13,7 +13,7 @@ interface AuthRepository {
 
     suspend fun signOut()
 
-    suspend fun deleteAccount(): Resource<Unit>
+    suspend fun deleteAccount(password: String): Resource<Unit>
 
     fun isEmailVerified(): Boolean
 
@@ -24,4 +24,5 @@ interface AuthRepository {
     suspend fun searchUserByEmail(email: String): Resource<User?>
 
     suspend fun getUserById(userId: String): Resource<User>
+
 }

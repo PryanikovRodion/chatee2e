@@ -6,8 +6,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.chatee2e.common.Resource
 import com.example.chatee2e.domain.model.User
-import com.example.chatee2e.domain.repository.UserRepository
 import com.example.chatee2e.domain.repository.ChatRepository
+import com.example.chatee2e.domain.repository.UserRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -18,8 +18,7 @@ data class SearchState(
     val query: String = "",
     val users: List<User> = emptyList(),
     val filteredUsers: List<User> = emptyList(),
-    val isLoading: Boolean = false,
-    val error: String? = null
+    val isLoading: Boolean = false
 )
 
 @HiltViewModel
@@ -41,17 +40,14 @@ class SearchViewModel @Inject constructor(
     private fun loadInitialUsers() {
         viewModelScope.launch {
             _state.value = state.value.copy(isLoading = true)
-            when (val result = userRepository.getAllUsers()) {
-                is Resource.Success -> {
-                    _state.value = state.value.copy(
-                        users = result.data ?: emptyList(),
-                        isLoading = false
-                    )
-                }
-                is Resource.Error -> {
-                    _state.value = state.value.copy(error = result.message, isLoading = false)
-                }
-                else -> {}
+            val result = userRepository.getAllUsers()
+            if (result is Resource.Success) {
+                _state.value = state.value.copy(
+                    users = result.data ?: emptyList(),
+                    isLoading = false
+                )
+            } else {
+                _state.value = state.value.copy(isLoading = false)
             }
         }
     }
@@ -70,20 +66,13 @@ class SearchViewModel @Inject constructor(
 
     fun onUserClicked(user: User) {
         viewModelScope.launch {
-            _state.value = state.value.copy(isLoading = true)
             val result = chatRepository.createDirectChat(user)
-            _state.value = state.value.copy(isLoading = false)
-
-            when (result) {
-                is Resource.Success -> {
-                    result.data?.let { chatId ->
-                        _eventFlow.emit(UiEvent.NavigateToChat(chatId))
-                    }
+            if (result is Resource.Success) {
+                result.data?.let {
+                    _eventFlow.emit(UiEvent.NavigateToChat(it))
                 }
-                is Resource.Error -> {
-                    _eventFlow.emit(UiEvent.ShowSnackbar(result.message ?: "Error starting chat"))
-                }
-                else -> {}
+            } else if (result is Resource.Error) {
+                _eventFlow.emit(UiEvent.ShowSnackbar(result.message ?: "Error"))
             }
         }
     }

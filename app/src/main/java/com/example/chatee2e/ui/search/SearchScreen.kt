@@ -14,7 +14,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.chatee2e.domain.model.User
@@ -46,7 +45,7 @@ fun SearchScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Поиск") },
+                title = { Text("Find User") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = null)
@@ -66,7 +65,7 @@ fun SearchScreen(
                 value = state.query,
                 onValueChange = { viewModel.onQueryChanged(it) },
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                placeholder = { Text("Имя или email...") },
+                placeholder = { Text("Enter username or email...") },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 singleLine = true
             )
@@ -100,11 +99,11 @@ fun SearchResultItem(user: User, onClick: () -> Unit) {
         ) {
             Surface(
                 modifier = Modifier.size(48.dp),
-                shape = CircleShape, // Исправлено здесь
-                color = MaterialTheme.colorScheme.primary
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer
             ) {
                 Box(contentAlignment = Alignment.Center) {
-                    Text(user.username.take(1).uppercase(), color = Color.White)
+                    Text(user.username.take(1).uppercase())
                 }
             }
             Spacer(modifier = Modifier.width(16.dp))
