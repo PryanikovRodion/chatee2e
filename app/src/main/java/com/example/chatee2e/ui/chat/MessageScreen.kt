@@ -81,7 +81,7 @@ fun MessageScreen(
                 modifier = Modifier
                     .weight(1f)
                     .fillMaxWidth(),
-                reverseLayout = true,
+                reverseLayout = false,
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {

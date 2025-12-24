@@ -34,10 +34,10 @@ fun CreateGroupScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Создать группу") },
+                title = { Text("Create Group") },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Назад")
+                        Icon(Icons.Default.ArrowBack, contentDescription = "back")
                     }
                 }
             )
@@ -45,7 +45,7 @@ fun CreateGroupScreen(
         floatingActionButton = {
             if (groupName.isNotBlank() && state.selectedUsers.isNotEmpty() && !state.isLoading) {
                 FloatingActionButton(onClick = { viewModel.createGroup(groupName) }) {
-                    Icon(Icons.Default.Done, contentDescription = "Создать")
+                    Icon(Icons.Default.Done, contentDescription = "create")
                 }
             }
         }
@@ -59,7 +59,7 @@ fun CreateGroupScreen(
             OutlinedTextField(
                 value = groupName,
                 onValueChange = { groupName = it },
-                label = { Text("Название группы") },
+                label = { Text("Group name") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(16.dp),
@@ -67,7 +67,7 @@ fun CreateGroupScreen(
             )
 
             Text(
-                text = "Выберите участников: ${state.selectedUsers.size}",
+                text = "Users: ${state.selectedUsers.size}",
                 style = MaterialTheme.typography.labelLarge,
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
             )

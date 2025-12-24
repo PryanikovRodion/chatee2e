@@ -9,12 +9,12 @@ plugins {
 
 android {
     namespace = "com.example.chatee2e"
-    compileSdk = 35 // Пока не ставь 36, 35 — стабильный максимум
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.chatee2e"
         minSdk = 26
-        targetSdk = 34 // 34 гарантирует работу на всех устройствах сейчас
+        targetSdk = 34
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -72,7 +72,6 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // ТОЛЬКО ОДИН SQLCIPHER И ОДИН МОСТ
     implementation(libs.sqlcipher.android)
     implementation(libs.androidx.sqlite.ktx)
 
