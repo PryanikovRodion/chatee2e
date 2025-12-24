@@ -59,7 +59,7 @@ fun MessageScreen(
                         }
                         DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
                             DropdownMenuItem(
-                                text = { Text("Выйти из чата") },
+                                text = { Text("exit") },
                                 onClick = {
                                     showMenu = false
                                     viewModel.leaveChat(chatId)
