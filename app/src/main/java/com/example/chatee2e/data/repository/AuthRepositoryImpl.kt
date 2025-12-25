@@ -1,6 +1,7 @@
 package com.example.chatee2e.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.example.chatee2e.common.Resource
 import com.example.chatee2e.data.crypto.CryptoManager
 import com.example.chatee2e.data.local.SessionManager
@@ -104,13 +105,20 @@ class AuthRepositoryImpl @Inject constructor(
             firestore.collection("users").document(uid).delete().await()
 
             val chatsSnapshot = firestore.collection("chats")
-                .whereArrayContains("participants", uid)
+                .whereArrayContains("participantIds", uid)
                 .get()
                 .await()
 
+
+
             for (chatDoc in chatsSnapshot.documents) {
-                chatDoc.reference.delete().await()
+                try {
+                    chatDoc.reference.delete().await()
+                }catch (e: Exception) {
+                    Log.d("deleteAccount","$e")
+                }
             }
+
 
             user.delete().await()
 
